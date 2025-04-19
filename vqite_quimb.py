@@ -1107,7 +1107,6 @@ def p_str_exp_eval(
     --------
     exp_val : complex128
         Expectation value of the Pauli string.
-
     """
     where = [i for i,p in enumerate(pauli_str) if p!= 'I']
     paulis = [p for i,p in enumerate(pauli_str) if p!= 'I']
