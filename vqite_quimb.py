@@ -1102,6 +1102,12 @@ def p_str_exp_eval(
                 Backend to use when performing the contractions.
                 Usually specified if GPU acceleration is needed.
             ...
+    
+    Returns:
+    --------
+    exp_val : complex128
+        Expectation value of the Pauli string.
+
     """
     where = [i for i,p in enumerate(pauli_str) if p!= 'I']
     paulis = [p for i,p in enumerate(pauli_str) if p!= 'I']
