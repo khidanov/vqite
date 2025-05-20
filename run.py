@@ -1,24 +1,13 @@
 import numpy as np
-import scipy
-import pickle
-import time
 from typing import (
     List,
     Optional,
     Tuple,
     Union
 )
-import random
-import importlib
 from mpi4py import MPI
 import argparse
 import os
-
-import quimb as qu
-import quimb.tensor as qtn
-
-import cotengra as ctg
-
 import vqite_quimb
 
 """
@@ -31,6 +20,7 @@ parser.add_argument(
     "-f",
     "--filename",
     type = str,
+    default="N12g0.1",
     metavar = '\b',
     help = "filename specifying parameters in the format, e.g., N12g0.1"
 )

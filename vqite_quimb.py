@@ -21,9 +21,7 @@ conda install -c conda-forge mpi4py mpich
 """
 
 import numpy as np
-import scipy
 import pickle
-import time
 from typing import (
     List,
     Optional,
@@ -35,9 +33,6 @@ from mpi4py import MPI
 
 import quimb as qu
 import quimb.tensor as qtn
-
-import cotengra as ctg
-
 
 class model_H:
     """
