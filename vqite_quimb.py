@@ -15,9 +15,13 @@ Quimb version = 1.8.4 (errors can occur for the version 1.9.0)
 Cotengra version = 0.6.2
 Autoray version = 0.7.0
 
+for mac:
 pip install quimb==1.8.4 autoray cmaes cotengrust cytoolz kahypar loky networkx opt_einsum optuna tqdm
 conda install -c conda-forge mpi4py mpich
 
+for windows: 
+for windows kahypar does not work: pip install quimb==1.8.4 autoray cmaes cotengrust cytoolz loky networkx opt_einsum optuna tqdm
+to install mpi4py use "$ python -m pip install mpi4py"
 """
 
 import numpy as np
