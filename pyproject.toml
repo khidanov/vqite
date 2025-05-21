@@ -1,0 +1,17 @@
+[tool.ruff]
+# General settings for Ruff
+line-length = 88
+select = ["E", "F", "I", "W", "C", "B", "D", "Q", "RUF", "UP", "N", "ANN", "S"]  # Common lint codes (E=pycodestyle, F=pyflakes, I=imports, etc.)
+
+# Import sorting (I group)
+# Ruff will sort imports automatically when using --fix
+
+[tool.mypy]
+python_version = 3.12
+check_untyped_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+strict_optional = true
+warn_unused_configs = true
+warn_return_any = true
+warn_unused_ignores = true
