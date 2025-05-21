@@ -7,7 +7,7 @@ select = ["E", "F", "I", "W", "C", "B", "D", "Q", "RUF", "UP", "N", "ANN", "S"] 
 # Ruff will sort imports automatically when using --fix
 
 [tool.mypy]
-python_version = 3.12
+python_version = "3.12"
 check_untyped_defs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
