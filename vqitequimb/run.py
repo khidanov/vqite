@@ -1,4 +1,4 @@
-"""VQITE Runner Script - Performs Variational Quantum Imaginary Time Evolution using Quimb.
+"""VQITE Runner Script.
 
 This script performs Variational Quantum Imaginary Time Evolution (VQITE) using Quimb
 and MPI parallelization. It provides a command-line interface to configure and run
@@ -6,9 +6,10 @@ VQITE simulations with various optimization strategies and parameters.
 
 Command-line Arguments:
     -f, --filename : str
-        Filename specifying parameters in the format, e.g., 'N12g0.1' (default: 'N12g0.1')
+        Filename specifying parameters in the format, e.g., 'N12g0.1'
+        (default: 'N12g0.1')
     -i, --init_params : str
-        Initial parameters strategy, e.g., 'random' (default: 'random')
+        Initial parameters strategy, e.g., 'random', 'zeros' (default: 'random')
     -om, --optimize_m : str
         Optimizer to use when computing matrix M (default: 'greedy')
     -ov, --optimize_v : str
@@ -16,12 +17,13 @@ Command-line Arguments:
     -s, --simplify_sequence : str
         Simplification sequence to use by quimb (default: 'ADCRS')
 
-The script uses MPI for parallel computation, with rank 0 process handling initialization
-and final output, while other ranks participate in the VQITE computation.
+The script uses MPI for parallel computation, with rank 0 process handling
+initialization and final output, while other ranks participate in the VQITE computation.
 
 Output:
     Creates output files in the 'outputs' directory with naming convention:
-    output{filename}n{num_processes}_{init_params}_om{optimize_m}_ov{optimize_v}_s{simplify_sequence}.txt
+    output{filename}n{num_processes}_{init_params}_om{optimize_m}_ov{optimize_v}
+    _s{simplify_sequence}.txt
 """
 
 import argparse
@@ -95,7 +97,8 @@ ansatz_file = os.path.join("data_adaptvqite", filename, "ansatz_inp.pkle")
 os.makedirs("outputs", exist_ok=True)
 output_file = os.path.join(
     "outputs",
-    f"output{filename}n{size!s}_{init_params}_om{optimize_m}_ov{optimize_v}_s{simplify_sequence}.txt",
+    f"output{filename}n{size!s}_{init_params}_om{optimize_m}_ov{optimize_v}_"
+    f"s{simplify_sequence}.txt",
 )
 
 # Initialize VQITE on rank 0 and broadcast parameters to other ranks
@@ -135,7 +138,8 @@ if rank != 0:
 #     V_adaptvqite = data_inp[1]
 
 # start_time = MPI.Wtime()
-# vqite_quimb_obj.compute_m(which_nonzero=None,optimize='greedy',simplify_sequence = '',backend=None)
+# vqite_quimb_obj.compute_m(which_nonzero=None,optimize='greedy',simplify_sequence = '',
+# backend=None)
 # end_time = MPI.Wtime()
 # Mdiff = M_adaptvqite - vqite_quimb_obj._m
 # if rank==0:
