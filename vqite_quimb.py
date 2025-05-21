@@ -650,7 +650,7 @@ class Quimb_vqite:
     ):
         """
         Constructs the following quantum circuit (see AVQITE paper for details):
-        U^{\dag}_{0,\nu-1} A_{\nu} U_{\mu,\nu-1} A_{\mu} U_{0,\mu-1}|ref>,
+        U^{\\dag}_{0,\nu-1} A_{\nu} U_{\\mu,\nu-1} A_{\\mu} U_{0,\\mu-1}|ref>,
         where |ref> is the reference state.
 
         Parameters:
@@ -660,7 +660,7 @@ class Quimb_vqite:
         nu : int
             Index where Pauli A_mu is placed.
         A_mu : str
-            Pauli string A_{\mu}.
+            Pauli string A_{\\mu}.
         A_nu : str
             Pauli string A_{\nu}.
         """
@@ -695,7 +695,7 @@ class Quimb_vqite:
     ):
         """
         Constructs the following quantum circuit (see AVQITE paper for details):
-        U_{0,\mu-1}|ref>, where |ref> is the reference state.
+        U_{0,\\mu-1}|ref>, where |ref> is the reference state.
 
         Parameters:
         ----------
@@ -718,10 +718,10 @@ class Quimb_vqite:
         """
         Calculates contraction width, cost, and value for the following tensor
         (see AVQITE paper for details):
-        <ref|U^{\dag}_{0,\nu-1} A_{\nu} U_{\mu,\nu-1} A_{\mu} U_{0,\mu-1}|ref>.
+        <ref|U^{\\dag}_{0,\\nu-1} A_{\nu} U_{\\mu,\\nu-1} A_{\\mu} U_{0,\\mu-1}|ref>.
         The tensor and the contraction are obtained as the evaluation of the
         overlap between state
-        U^{\dag}_{0,\nu-1} A_{\nu} U_{\mu,\nu-1} A_{\mu} U_{0,\mu-1}|ref> and
+        U^{\\dag}_{0,\nu-1} A_{\\nu} U_{\\mu,\\nu-1} A_{\\mu} U_{0,\\mu-1}|ref> and
         |ref>.
 
         Parameters:
@@ -791,9 +791,9 @@ class Quimb_vqite:
         """
         Calculates contraction width, cost, and value for the following tensor
         (see AVQITE paper for details):
-        <ref|U^{\dag}_{0,\mu-1} A_{\mu} U_{0,\mu-1}|ref>.
+        <ref|U^{\\dag}_{0,\\mu-1} A_{\\mu} U_{0,\\mu-1}|ref>.
         The tensor and the contraction are obtained as the evaluation of the
-        expectation value of operator A_{\mu} (\mu'th operator from the ansatz).
+        expectation value of operator A_{\\mu} (\\mu'th operator from the ansatz).
 
         Parameters:
         -----------
