@@ -68,12 +68,11 @@ optimize_m = args.optimize_m
 optimize_v = args.optimize_v
 simplify_sequence = args.simplify_sequence
 
-incar_file = f"incars/incar{filename}"
-ansatz_file = f"data_adaptvqite/{filename}/ansatz_inp.pkle"
+incar_file = os.path.join("incars", f"incar{filename}")
+ansatz_file = os.path.join("data_adaptvqite", filename, "ansatz_inp.pkle")
 
-os.makedirs('outputs', exist_ok=True)
-output_file = ("outputs/output"+filename+"n"+str(size)+"_"+init_params+
-               "_om"+optimize_m+"_ov"+optimize_v+"_s"+simplify_sequence+".txt")
+os.makedirs("outputs", exist_ok=True)
+output_file = os.path.join("outputs", f"output{filename}n{str(size)}_{init_params}_om{optimize_m}_ov{optimize_v}_s{simplify_sequence}.txt")
 
 if rank==0:
     start_time = MPI.Wtime()
