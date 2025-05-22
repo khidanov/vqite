@@ -449,31 +449,43 @@ class QuimbVqite:
             self._m_cost[ind_list[i]] = m_nonzero_cost[i]
             self._m_cost[ind_list[i][::-1]] = m_nonzero_cost[i]
 
-    def compute_v(self, optimize="greedy", **kwargs):
-        """Computes vector V in VQITE in parallel using parameter shift rule.
-        Each parallel process calculates the expectationvalue of a particular
+    def compute_v(
+        self, optimize: str | dict = "greedy", **kwargs: dict[str, str | int | bool]
+    ) -> None:
+        """Compute vector V in VQITE in parallel using parameter shift rule.
+
+        Each parallel process calculates the expectation value of a particular
         Pauli string in the Hamiltonian.
 
         Parameters
         ----------
         optimize : str or dict
-            Optimizer to use when looking for contraction paths.
-        **kwargs
-            Arguments used in Quimb methods for tensor contraction
-            evaluations, such as:
-                simplify_sequence : str
-                    TN simplifications to use when looking for contraction paths.
-                backend : str
-                    Backend to use when performing the contractions.
-                    Usually specified if GPU acceleration is needed.
-                ...
+            Specifies the optimization strategy for tensor network contractions:
+            - If str: Uses Quimb's built-in optimization method (e.g. "greedy")
+            - If dict: Uses pre-computed contraction paths for each Pauli string
+        **kwargs : dict
+            Additional arguments for Quimb's tensor network operations:
+            - simplify_sequence: str
+                Sequence of tensor network simplifications to apply
+            - backend: str
+                Computation backend
+            - memory_limit: int
+                Maximum memory allowed for contractions
+            - cutoff: float
+                SVD truncation threshold for tensor simplification
+
+        Notes
+        -----
+        The computation is distributed such that each MPI process handles a subset of
+        the required expectation value calculations. Results are then gathered and
+        combined to form the complete V vector.
 
         """
         n_of_exp_vals = len(self.params) * 2 * len(self._H.paulis)
 
         self._exp_vals = np.zeros(n_of_exp_vals)
 
-        bins_sizes = [int(n_of_exp_vals / self._size) for i in range(self._size)]
+        bins_sizes = [int(n_of_exp_vals / self._size) for _ in range(self._size)]
         for i in range(n_of_exp_vals - int(n_of_exp_vals / self._size) * self._size):
             bins_sizes[i] = bins_sizes[i] + 1
         start = sum(bins_sizes[: self._rank])
@@ -495,15 +507,16 @@ class QuimbVqite:
             qc = self._base_circuits[-1].copy()
             # update parameters
             old_params_dict = qc.get_params()
-            new_params_dict = dict()
-            for j, key in enumerate(old_params_dict.keys()):
-                new_params_dict[key] = np.array([params[j]])
+            new_params_dict = {
+                key: np.array([params[j]])
+                for j, key in enumerate(old_params_dict.keys())
+            }
             qc.set_params(new_params_dict)
 
             pauli_str_ind = ind % len(self._H.paulis)
             pauli_str = self._H.paulis[pauli_str_ind]
 
-            if type(optimize) == dict:
+            if isinstance(optimize, dict):
                 exp_vals_iterm[i] = np.real(
                     p_str_exp_eval(
                         qc=qc,
@@ -515,7 +528,10 @@ class QuimbVqite:
             else:
                 exp_vals_iterm[i] = np.real(
                     p_str_exp_eval(
-                        qc=qc, pauli_str=pauli_str, optimize=optimize, **kwargs
+                        qc=qc,
+                        pauli_str=pauli_str,
+                        optimize=optimize,
+                        **kwargs,
                     )
                 )
 
