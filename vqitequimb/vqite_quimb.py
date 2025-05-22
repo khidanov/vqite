@@ -560,8 +560,8 @@ class QuimbVqite:
             for param_ind in range(len(self.params))
         ]
 
-    def get_dthdt(self, delta, m, v):
-        """Computes parameter vector gradient.
+    def get_dthdt(self, delta: float, m: np.ndarray, v: np.ndarray) -> np.ndarray:
+        """Compute parameter vector gradient.
 
         Parameters
         ----------
@@ -572,10 +572,16 @@ class QuimbVqite:
         v : numpy.ndarray
             Vector V.
 
+        Returns
+        -------
+        numpy.ndarray
+            Parameter gradient vector dθ/dt of shape (n,) used to update parameters
+            in imaginary time evolution step
+
         """
         a = m + delta * np.eye(m.shape[0])
         ainv = np.linalg.inv(a)
-        dthdt = ainv.dot(v)
+        dthdt: np.ndarray = ainv.dot(v)
         return dthdt
 
     def vqite(
