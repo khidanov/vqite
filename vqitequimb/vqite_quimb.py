@@ -351,7 +351,7 @@ class QuimbVqite:
             old_params_dict = self._base_circuits[mu].get_params()
             new_params_dict = {
                 key: np.array([self.params[i]])
-                for key, i in enumerate(old_params_dict.keys())
+                for i, key in enumerate(old_params_dict.keys())
             }
             self._base_circuits[mu].set_params(new_params_dict)
 
