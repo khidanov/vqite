@@ -21,7 +21,6 @@ Notes:
 """
 
 import pickle
-import random
 
 import numpy as np
 import quimb as qu
@@ -169,8 +168,37 @@ class QuimbVqite:
     """
 
     def __init__(
-        self, incar_file: str, ansatz_file: str, output_file: str, init_params="random"
-    ):
+        self,
+        incar_file: str,
+        ansatz_file: str,
+        output_file: str,
+        init_params: str | list[float] = "random",
+    ) -> None:
+        """Initialize a QuimbVqite instance.
+
+        Parameters
+        ----------
+        incar_file : str
+            Path to input file containing Hamiltonian and reference state specifications
+        ansatz_file : str
+            Path to AVQITE format (.pkle) file containing ansatz form and parameters
+        output_file : str
+            Path where calculation outputs will be written
+        init_params : str or list[float], optional
+            Initial parameter strategy, by default "random". Options:
+            - "random": AVQITE parameters plus random noise in [-0.05, 0.05]
+            - "zeros": All parameters set to 0.0
+            - "avqite": Use parameters from AVQITE solution
+            - list: Custom parameter values matching ansatz length
+
+        Raises
+        ------
+        NotImplementedError
+            If init_params is not one of the valid options
+        ValueError
+            If reference state specification is invalid
+
+        """
         self._incar_file = incar_file
         self._ansatz_file = ansatz_file
         self._output_file = output_file
@@ -181,8 +209,8 @@ class QuimbVqite:
         self._rank = self._comm.Get_rank()
 
         # Reads out the Hamiltonian from the incar file.
-        # The number of qubits is determined from there.
         self._H = ModelH(self._incar_file)
+        # The number of qubits is determined from there.
         self._num_qubits = len(self._H.paulis[0])
 
         # Reads out the form of the ansatz and the parameters of the ansatz from
@@ -195,14 +223,14 @@ class QuimbVqite:
         # to be random.
         if self._init_params == "random":
             self.params = [
-                self._params_solution[i] + random.uniform(-0.05, 0.05)
+                self._params_solution[i] + np.random.uniform(-0.05, 0.05)
                 for i in range(len(self._ansatz))
             ]
         elif self._init_params == "zeros":
-            self.params = [0.0 for i in range(len(self._ansatz))]
+            self.params = [0.0 for _ in range(len(self._ansatz))]
         elif self._init_params == "avqite":
             self.params = self._params_solution.copy()
-        elif type(self._init_params) == list and len(self._init_params) == len(
+        elif isinstance(self._init_params, list) and len(self._init_params) == len(
             self._ansatz
         ):
             self.params = self._init_params.copy()
@@ -222,6 +250,7 @@ class QuimbVqite:
         with open(self._incar_file) as fp:
             incar_content = fp.read()
         ref_st_r_pos = incar_content.find("ref_state")
+
         # Reads out the reference state from the incar file.
         self._ref_state = incar_content[
             ref_st_r_pos + 13 : ref_st_r_pos + 13 + self._num_qubits
@@ -229,8 +258,9 @@ class QuimbVqite:
 
         # Initializes a quantum circuit.
         self._init_qc = qtn.Circuit(N=self._num_qubits)
+
         # If the reference state contains "1"s, adds corresponding bit-flips.
-        if all([(el == "0") or (el == "1") for el in self._ref_state]):
+        if all((el == "0") or (el == "1") for el in self._ref_state):
             [
                 self._init_qc.apply_gate("X", i)
                 for i, el in enumerate(self._ref_state)
@@ -238,6 +268,7 @@ class QuimbVqite:
             ]
         else:
             raise ValueError("Reference state is supposed to be a string of 0s and 1s")
+
         # Creates and saves a set of gates in Quimb corresponding to Pauli
         # rotations (and their inverse) from the ansatz.
         # This will be used throghout the calculations.
@@ -267,6 +298,7 @@ class QuimbVqite:
         self._pauli_rot_dag_gates_list = [
             self._pauli_rot_dag_circuits_list[i].gates for i in range(len(self._ansatz))
         ]
+
         # Creates and saves circuits in Quimb correspondning to the product of
         # Pauli rotations up to mu'th rotation in the ansatz list, where
         # mu is the index.
@@ -275,34 +307,52 @@ class QuimbVqite:
             self.circuit_2(mu) for mu in range(len(self._ansatz) + 1)
         ]
 
-    def update_params(self):
-        """Update self._pauli_rot_circuits_list, self._pauli_rot_gates_list,
-        self._pauli_rot_dag_circuits_list, self._pauli_rot_dag_gates_list,
-        and self._base_circuits for the current values of self.params.
+    def update_params(self) -> None:
+        """Update the circuit parameters to match the current values in self.params.
+
+        This method synchronizes all the stored quantum circuits and gates with the
+        current parameter values. Specifically, it updates:
+
+        - self._pauli_rot_circuits_list: Forward Pauli rotation circuits
+        - self._pauli_rot_gates_list: Gates extracted from forward circuits
+        - self._pauli_rot_dag_circuits_list: Adjoint (inverse) Pauli rotation circuits
+        - self._pauli_rot_dag_gates_list: Gates extracted from adjoint circuits
+        - self._base_circuits: Product circuits up to each rotation index
+
+        The method must be called whenever self.params is modified to ensure all
+        quantum circuits use the current parameter values.
+
+        Returns
+        -------
+        None
+
         """
         for k in range(len(self._ansatz)):
             old_params_dict = self._pauli_rot_circuits_list[k].get_params()
-            new_params_dict = dict()
-            for i, key in enumerate(old_params_dict.keys()):
-                new_params_dict[key] = np.array([self.params[k]])
+            new_params_dict = {
+                key: np.array([self.params[k]]) for key in old_params_dict.keys()
+            }
             self._pauli_rot_circuits_list[k].set_params(new_params_dict)
+
         self._pauli_rot_gates_list = [
             self._pauli_rot_circuits_list[k].gates for k in range(len(self._ansatz))
         ]
         for k in range(len(self._ansatz)):
             old_params_dict = self._pauli_rot_dag_circuits_list[k].get_params()
-            new_params_dict = dict()
-            for i, key in enumerate(old_params_dict.keys()):
-                new_params_dict[key] = np.array([-self.params[k]])
+            new_params_dict = {
+                key: np.array([-self.params[k]]) for key in old_params_dict.keys()
+            }
             self._pauli_rot_dag_circuits_list[k].set_params(new_params_dict)
+
         self._pauli_rot_dag_gates_list = [
             self._pauli_rot_dag_circuits_list[k].gates for k in range(len(self._ansatz))
         ]
         for mu in range(len(self._ansatz) + 1):
             old_params_dict = self._base_circuits[mu].get_params()
-            new_params_dict = dict()
-            for i, key in enumerate(old_params_dict.keys()):
-                new_params_dict[key] = np.array([self.params[i]])
+            new_params_dict = {
+                key: np.array([self.params[i]])
+                for key, i in enumerate(old_params_dict.keys())
+            }
             self._base_circuits[mu].set_params(new_params_dict)
 
     def compute_m(self, which_nonzero=None, **kwargs):
