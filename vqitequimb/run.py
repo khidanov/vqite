@@ -91,12 +91,14 @@ optimize_v = args.optimize_v
 simplify_sequence = args.simplify_sequence
 
 # Set up input and output file paths
-incar_file = os.path.join("incars", f"incar{filename}")
-ansatz_file = os.path.join("data_adaptvqite", filename, "ansatz_inp.pkle")
+script_dir = os.path.dirname(os.path.abspath(__file__))
+incar_file = os.path.join(script_dir, "incars", f"incar{filename}")
+ansatz_file = os.path.join(script_dir, "data_adaptvqite", filename, "ansatz_inp.pkle")
 
-os.makedirs("outputs", exist_ok=True)
+outputs_dir = os.path.join(script_dir, "outputs")
+os.makedirs(outputs_dir, exist_ok=True)
 output_file = os.path.join(
-    "outputs",
+    outputs_dir,
     f"output{filename}n{size!s}_{init_params}_om{optimize_m}_ov{optimize_v}_"
     f"s{simplify_sequence}.txt",
 )
