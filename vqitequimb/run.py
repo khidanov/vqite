@@ -108,7 +108,7 @@ output_file = os.path.join(
 # ranks)
 if rank == 0:
     start_time = MPI.Wtime()
-    vqite_quimb_obj = vqite_quimb.Quimb_vqite(
+    vqite_quimb_obj = vqite_quimb.QuimbVqite(
         incar_file=incar_file,
         ansatz_file=ansatz_file,
         output_file=output_file,
@@ -127,7 +127,7 @@ init_params = comm.bcast(init_params, root=0)
 
 # Initialize VQITE on other ranks with broadcasted parameters
 if rank != 0:
-    vqite_quimb_obj = vqite_quimb.Quimb_vqite(
+    vqite_quimb_obj = vqite_quimb.QuimbVqite(
         incar_file=incar_file,
         ansatz_file=ansatz_file,
         output_file=output_file,
