@@ -29,7 +29,7 @@ import quimb.tensor as qtn
 from mpi4py import MPI
 
 
-class model_H:
+class ModelH:
     """Class for Hamiltonians constructed using incar_file.
 
     Attributes
@@ -142,7 +142,7 @@ class Quimb_vqite:
 
         # Reads out the Hamiltonian from the incar file.
         # The number of qubits is determined from there.
-        self._H = model_H(self._incar_file)
+        self._H = ModelH(self._incar_file)
         self._num_qubits = len(self._H.paulis[0])
 
         # Reads out the form of the ansatz and the parameters of the ansatz from

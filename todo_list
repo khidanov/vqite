@@ -1,0 +1,6 @@
+requirements file
+unit tests, integrations tests
+CI through github actions
+improve .toml file
+make example notebooks (see vqite_quimb)
+rewrite using OOP
