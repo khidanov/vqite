@@ -355,36 +355,51 @@ class QuimbVqite:
             }
             self._base_circuits[mu].set_params(new_params_dict)
 
-    def compute_m(self, which_nonzero=None, **kwargs):
-        """Computes matrix M in VQITE in parallel.
-        Each parallel process calculates a different part of the matrix.
+    def compute_m(
+        self,
+        which_nonzero: list[tuple[int, int]] | None = None,
+        **kwargs: dict[str, str | int | bool],
+    ) -> None:
+        """Compute the matrix M in VQITE in parallel using MPI.
+
+        The computation is distributed across MPI processes, with each process calculating
+        a subset of the matrix elements. The results are then gathered and combined into
+        the full matrix.
 
         Parameters
         ----------
-        which_nonzero : List[int]
-            Indices of matrix M that are known to be nonzero.
-            If None, the entire matrix is calculated.
-        **kwargs
-            Arguments used in Quimb methods for tensor contraction
-            evaluations, such as:
-                optimize : str
-                    Optimizer to use when looking for contraction paths.
-                simplify_sequence : str
-                    TN simplifications to use when looking for contraction paths.
-                backend : str
-                    Backend to use when performing the contractions.
-                    Usually specified if GPU acceleration is needed.
-                ...
+        which_nonzero : list[tuple[int, int]] | None, optional
+            List of index tuples specifying which M matrix elements to compute.
+            If None, computes all elements. Default is None.
+        **kwargs : dict
+            Keyword arguments passed to Quimb tensor contraction methods:
+            - optimize : str
+                Optimization strategy for finding contraction paths
+            - simplify_sequence : str
+                Tensor network simplifications to apply
+            - backend : str
+                Backend for performing contractions (e.g. 'numpy', 'cupy' for GPU)
+            - memory_limit : int
+                Maximum memory allowed for contractions
+            - progbar : bool
+                Whether to show a progress bar
+
+        Notes
+        -----
+        - The M matrix is symmetric, so only upper triangular elements are computed
+        - Results are stored in self._m, self._m_width, and self._m_cost
+        - Uses MPI parallelization with processes divided evenly across matrix elements
+        - Each process computes tensor contractions for its assigned elements
 
         """
-        if which_nonzero == None:
+        if which_nonzero is None:
             ind_list = [
                 (mu, nu) for nu in range(len(self._ansatz)) for mu in range(nu + 1)
             ]
         else:
             ind_list = which_nonzero
 
-        bins_sizes = [int(len(ind_list) / self._size) for i in range(self._size)]
+        bins_sizes = [int(len(ind_list) / self._size) for _ in range(self._size)]
         for i in range(len(ind_list) - int(len(ind_list) / self._size) * self._size):
             bins_sizes[i] = bins_sizes[i] + 1
         start = sum(bins_sizes[: self._rank])
