@@ -1,26 +1,23 @@
-"""This module performs VQITE simulations using tensor-network (TN) methods.
-Quimb is the library for performing TN contractions.
-Cotengra library is used to find optimal contraction paths.
-mpi4py is used for parallelization.
-Examples of calculations are given in the accompanying notebooks
-vqite_timing_test.ipynb and one_step_timing_test_and_MV_avqite_comparison.ipynb.
+"""Variational Quantum Imaginary Time Evolution (VQITE) using tensor networks.
 
-Packages information:
----------------------
-NumPy version = 1.24.4
-SciPy version = 1.12.0
-mpi4py version = 3.1.4
-Quimb version = 1.8.4 (errors can occur for the version 1.9.0)
-Cotengra version = 0.6.2
-Autoray version = 0.7.0
+This module implements VQITE simulations using tensor network methods for efficient
+quantum state evolution. It leverages several key libraries:
 
-for mac:
-pip install quimb==1.8.4 autoray cmaes cotengrust cytoolz kahypar loky networkx opt_einsum optuna tqdm
-conda install -c conda-forge mpi4py mpich
+- Quimb: Provides tensor network operations and contractions
+- Cotengra: Optimizes tensor network contraction paths
+- MPI4py: Enables parallel computation across multiple processes
 
-for windows:
-for windows kahypar does not work: pip install quimb==1.8.4 autoray cmaes cotengrust cytoolz loky networkx opt_einsum optuna tqdm
-to install mpi4py use "$ python -m pip install mpi4py"
+The implementation focuses on performance and scalability through:
+- Efficient tensor network representations of quantum states
+- Optimized contraction strategies
+- Parallel computation capabilities
+
+Example Usage:
+    See the accompanying notebooks for detailed examples:
+    - vqite_timing_test.ipynb: Performance benchmarking
+    - one_step_timing_test_and_MV_avqite_comparison.ipynb: Comparison with other methods
+Notes:
+    See requirements.txt for complete dependency information and version requirements.
 """
 
 import pickle
