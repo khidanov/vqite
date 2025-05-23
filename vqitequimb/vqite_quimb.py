@@ -553,12 +553,17 @@ class QuimbVqite:
             )
             for param_ind in range(len(self.params) * 2)
         ]
-        self._v = [
-            np.real(
-                -1 / 2 * (h_exp_vals[param_ind * 2] - h_exp_vals[param_ind * 2 + 1]) / 2
-            )
-            for param_ind in range(len(self.params))
-        ]
+        self._v = np.array(
+            [
+                np.real(
+                    -1
+                    / 2
+                    * (h_exp_vals[param_ind * 2] - h_exp_vals[param_ind * 2 + 1])
+                    / 2
+                )
+                for param_ind in range(len(self.params))
+            ]
+        )
 
     def get_dthdt(self, delta: float, m: np.ndarray, v: np.ndarray) -> np.ndarray:
         """Compute parameter vector gradient.
