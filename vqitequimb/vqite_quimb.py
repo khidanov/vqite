@@ -66,8 +66,8 @@ class ModelH:
 
         Notes
         -----
-        The incar_file should contain the Hamiltonian specification between 'h' and 'pool'
-        markers in AVQITE format. The file is parsed to extract:
+        The incar_file should contain the Hamiltonian specification between 'h' and
+        'pool' markers in AVQITE format. The file is parsed to extract:
         - Pauli string operators (stored in self.paulis)
         - Corresponding coefficients (stored in self.coefs)
 
@@ -362,9 +362,9 @@ class QuimbVqite:
     ) -> None:
         """Compute the matrix M in VQITE in parallel using MPI.
 
-        The computation is distributed across MPI processes, with each process calculating
-        a subset of the matrix elements. The results are then gathered and combined into
-        the full matrix.
+        The computation is distributed across MPI processes, with each process
+        calculating a subset of the matrix elements. The results are then gathered and
+        combined into the full matrix.
 
         Parameters
         ----------
@@ -543,7 +543,7 @@ class QuimbVqite:
             [self._exp_vals, sendcountes, displacements, MPI.DOUBLE],
         )
         # computing Hamiltonian expectation values for different parameters
-        H_exp_vals = [
+        h_exp_vals = [
             sum(
                 [
                     self._exp_vals[param_ind * len(self._H.coefs) + i]
@@ -555,7 +555,7 @@ class QuimbVqite:
         ]
         self._v = [
             np.real(
-                -1 / 2 * (H_exp_vals[param_ind * 2] - H_exp_vals[param_ind * 2 + 1]) / 2
+                -1 / 2 * (h_exp_vals[param_ind * 2] - h_exp_vals[param_ind * 2 + 1]) / 2
             )
             for param_ind in range(len(self.params))
         ]
