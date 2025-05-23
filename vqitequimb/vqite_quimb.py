@@ -358,7 +358,7 @@ class QuimbVqite:
     def compute_m(
         self,
         which_nonzero: list[tuple[int, int]] | None = None,
-        **kwargs: dict[str, str | int | bool],
+        **kwargs: str | int | bool | float,
     ) -> None:
         """Compute the matrix M in VQITE in parallel using MPI.
 
@@ -450,7 +450,7 @@ class QuimbVqite:
             self._m_cost[ind_list[i][::-1]] = m_nonzero_cost[i]
 
     def compute_v(
-        self, optimize: str | dict = "greedy", **kwargs: dict[str, str | int | bool]
+        self, optimize: str | dict = "greedy", **kwargs: str | int | float | bool
     ) -> None:
         """Compute vector V in VQITE in parallel using parameter shift rule.
 
@@ -585,9 +585,14 @@ class QuimbVqite:
         return dthdt
 
     def vqite(
-        self, delta=1e-4, dt=0.02, optimize_m="greedy", optimize_v="greedy", **kwargs
-    ):
-        """Performs VQITE routine.
+        self,
+        delta: float = 1e-4,
+        dt: float = 0.02,
+        optimize_m: str = "greedy",
+        optimize_v: str = "greedy",
+        **kwargs: str | int | float | bool,
+    ) -> None:
+        """Perform VQITE routine.
 
         Parameters
         ----------
@@ -613,12 +618,12 @@ class QuimbVqite:
                 ...
 
         """
-        _iter = 0
+        _iter: int = 0
         if self._rank == 0:
             with open(self._output_file, "a") as f:
                 print("Starting VQITE calculation...", file=f)
         while True:
-            t1 = MPI.Wtime()
+            t1: float = MPI.Wtime()
             if _iter == 0:
                 # For the first iteration, need to compute the entire matrix
                 # since it is not known a priori which elements are zero.
