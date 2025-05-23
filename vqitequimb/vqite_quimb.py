@@ -358,7 +358,7 @@ class QuimbVqite:
     def compute_m(
         self,
         which_nonzero: list[tuple[int, int]] | None = None,
-        **kwargs: str | int | bool | float,
+        **kwargs: str | int | float | bool,
     ) -> None:
         """Compute the matrix M in VQITE in parallel using MPI.
 
@@ -862,7 +862,6 @@ class QuimbVqite:
         self,
         mu: int,
         nu: int,
-        backend: str | None = None,
         **kwargs: str | int | float | bool,
     ) -> tuple[float, float, complex]:
         r"""Calculate tensor network contraction metrics for a specific overlap term.
@@ -882,10 +881,6 @@ class QuimbVqite:
         nu : int
             Index \nu specifying the position of the second Pauli operator A_{\nu}.
             Must satisfy \mu ≤ \nu < len(ansatz).
-        backend : str, optional
-            Hardware backend for tensor contractions. Options include:
-            - "numpy" : CPU-based calculations (default)
-            - "cupy" : GPU-accelerated calculations
         **kwargs : dict
             Additional arguments for tensor network contraction, including:
             - optimize : str
@@ -894,6 +889,10 @@ class QuimbVqite:
                 Sequence of tensor network simplifications
             - memory_limit : int
                 Maximum intermediate tensor size in bytes
+        backend : str, optional
+            Hardware backend for tensor contractions. Options include:
+            - "numpy" : CPU-based calculations (default)
+            - "cupy" : GPU-accelerated calculations
 
         Returns
         -------
@@ -922,7 +921,7 @@ class QuimbVqite:
             reh = qc.amplitude_rehearse("0" * self._num_qubits, **kwargs)
             width, cost = reh["W"], reh["C"]
             contraction = reh["tn"].contract(
-                all, optimize=reh["tree"], output_inds=(), backend=backend
+                all, optimize=reh["tree"], output_inds=(), backend=kwargs.get("backend")
             )
         if mu == nu:
             width, cost, contraction = (1, 0, 1)
@@ -930,7 +929,7 @@ class QuimbVqite:
         return width, cost, contraction
 
     def contr2_est(
-        self, mu: int, backend: str | None = None, **kwargs: str | int | float | bool
+        self, mu: int, **kwargs: str | int | float | bool
     ) -> tuple[float, float, complex]:
         r"""Calculate tensor network contraction metrics for a specific VQITE term.
 
@@ -946,10 +945,6 @@ class QuimbVqite:
         ----------
         mu : int
             Index of the Pauli operator A_{\\mu} from the ansatz to evaluate
-        backend : str, optional
-            Hardware backend for tensor contractions:
-            - "numpy" : CPU-based calculations (default)
-            - "cupy" : GPU-accelerated calculations
         **kwargs : dict
             Additional arguments for tensor network contraction:
             optimize : str
@@ -958,6 +953,10 @@ class QuimbVqite:
                 Sequence of tensor network simplifications (e.g. "ADCRS")
             memory_limit : int
                 Maximum intermediate tensor size in bytes
+            backend : str, optional
+                Hardware backend for tensor contractions:
+                - "numpy" : CPU-based calculations (default)
+                - "cupy" : GPU-accelerated calculations
 
         Returns
         -------
@@ -983,7 +982,7 @@ class QuimbVqite:
         qc = self._base_circuits[mu]
         reh = p_str_exp_contr_path(qc=qc, pauli_str=self._ansatz[mu], **kwargs)
         contraction = reh["tn"].contract(
-            all, optimize=reh["tree"], output_inds=(), backend=backend
+            all, optimize=reh["tree"], output_inds=(), backend=kwargs.get("backend")
         )
         contraction = np.real(1j * contraction / 2)
         return reh["W"], reh["C"], contraction
