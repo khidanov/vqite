@@ -634,7 +634,7 @@ class QuimbVqite:
                 # since it is not known a priori which elements are zero.
                 self.compute_m(optimize=optimize_m, which_nonzero=None, **kwargs)
                 # Save locations of nonzero elements.
-                non_zero_els = np.where((np.abs(self._m) > 1e-14) == True)
+                non_zero_els = np.where(np.abs(self._m) > 1e-14)
                 self.which_nonzero = [
                     (non_zero_els[0][i], non_zero_els[1][i])
                     for i in range(len(non_zero_els[0]))
@@ -653,14 +653,16 @@ class QuimbVqite:
                 self.compute_m(
                     optimize=optimize_m, which_nonzero=self.which_nonzero, **kwargs
                 )
-            t2 = MPI.Wtime()
+            t2: float = MPI.Wtime()
             self.compute_v(optimize=optimize_v, **kwargs)
-            t3 = MPI.Wtime()
-            dthdt = self.get_dthdt(delta=delta, m=self._m, v=self._v)
+            t3: float = MPI.Wtime()
+            dthdt: np.ndarray = self.get_dthdt(delta=delta, m=self._m, v=self._v)
             params_new = [p + pp * dt for p, pp in zip(self.params, dthdt)]
             self.params = params_new
             self.update_params()
-            self._e = self.h_exp_val(params=self.params, optimize=optimize_v, **kwargs)
+            self._e: float = self.h_exp_val(
+                params=self.params, optimize=optimize_v, **kwargs
+            )
             if self._rank == 0:
                 with open(self._output_file, "a") as f:
                     print(
@@ -674,20 +676,30 @@ class QuimbVqite:
                         self._e,
                         file=f,
                     )
-            self._vmax = np.max(np.abs(self._v))
+            self._vmax: float = np.max(np.abs(self._v))
             # Convergence condition.
             if self._vmax < 1e-4:
                 break
             _iter += 1
 
-    def h_terms_find_contractions(self, **kwargs):
-        """Finds TN contractions for computing the expectation value of each
-        Pauli string in the Hamiltonian.
-        The obtained contractions are saved in dictionaries
-        self.h_terms_reh_dict (for reh) and self.optimize_dict (for reh trees).
+    def h_terms_find_contractions(self, **kwargs: str | int | float | bool) -> None:
+        """Find tensor network contractions for Hamiltonian term expectation values.
+
+        This method precomputes and stores the tensor network contractions needed to
+        evaluate expectation values of each Pauli string term in the Hamiltonian.
+
+        The contractions are stored in two dictionaries:
+            self.h_terms_reh_dict : dict
+                Maps each Pauli string to its rehearsal contraction data
+            self.optimize_dict : dict
+                Maps each Pauli string to its optimized contraction tree
+
+        The precomputed contractions can be reused across iterations to avoid
+        redundant computation of contraction paths.
+
         """
-        self.h_terms_reh_dict = dict()
-        self.optimize_dict = dict()
+        self.h_terms_reh_dict: dict = {}
+        self.optimize_dict: dict = {}
         qc = self._base_circuits[-1].copy()
         for pauli_str in self._H.paulis:
             self.h_terms_reh_dict[pauli_str] = p_str_exp_contr_path(
@@ -695,43 +707,59 @@ class QuimbVqite:
             )
             self.optimize_dict[pauli_str] = self.h_terms_reh_dict[pauli_str]["tree"]
 
-    def h_exp_val(self, params=None, optimize="greedy", **kwargs):
-        """Computes expectation value of the Hamiltonian using Quimb.
+    def h_exp_val(
+        self,
+        params: list[float] | None = None,
+        optimize: str | dict = "greedy",
+        **kwargs: str | int | float | bool,
+    ) -> float:
+        """Compute the expectation value of the Hamiltonian using Quimb.
+
+        The expectation value is calculated by evaluating each Pauli string term in
+        the Hamiltonian using tensor network contractions via Quimb.
+        The results are weighted by the coefficients and summed to get the total energy
+        expectation value.
 
         Parameters
         ----------
         params : List[float] or None
-            List of parameters to be used in the ansatz state.
-            If None, current parameters within the object are used.
-        optimize : str ot dict
-            Optimizer to use when looking for contraction paths.
-            If str, then provide Quimb value.
-            If dict, then provide a dictionary with a rehearsal tree for each
-            Pauli string in the Hamiltonian.
-        **kwargs
-            Arguments used in Quimb methods for tensor contraction
-            evaluations, such as (note that optimize parameter is specified
-            separately):
-                simplify_sequence : str
-                    TN simplifications to use when looking for contraction paths.
-                backend : str
-                    Backend to use when performing the contractions.
-                    Usually specified if GPU acceleration is needed.
-                ...
+            Parameters for the variational quantum circuit that defines the state.
+            If None, uses the current parameters stored in the object.
+        optimize : str or dict
+            Specifies how to optimize the tensor network contractions:
+            - If str: Uses Quimb's built-in optimizer (e.g. "greedy", "dynamic", etc.)
+            - If dict: Maps each Pauli string to a pre-computed optimal contraction tree
+        **kwargs : dict
+            Additional arguments passed to Quimb's contraction methods, including:
+            simplify_sequence : str
+                Sequence of tensor network simplifications to apply (e.g. "ADCRS")
+            backend : str
+                Hardware backend for computations ("numpy", "cupy" for GPU, etc.)
+
+        Returns
+        -------
+        float
+            The expectation value
+
+        Notes
+        -----
+        For large systems, using pre-computed contraction trees via the optimize dict
+        can significantly improve performance by avoiding redundant path optimizations.
 
         """
         qc = self._base_circuits[-1].copy()
 
-        if params != None:
+        if params is not None:
             old_params_dict = qc.get_params()
-            new_params_dict = dict()
-            for i, key in enumerate(old_params_dict.keys()):
-                new_params_dict[key] = np.array([params[i]])
+            new_params_dict = {
+                key: np.array([params[i]])
+                for i, key in enumerate(old_params_dict.keys())
+            }
             qc.set_params(new_params_dict)
 
         h_exp_vals = []
         for pauli_str in self._H.paulis:
-            if type(optimize) == dict:
+            if isinstance(optimize, dict):
                 exp_val = p_str_exp_eval(
                     qc=qc, pauli_str=pauli_str, optimize=optimize[pauli_str], **kwargs
                 )
@@ -742,26 +770,39 @@ class QuimbVqite:
                         qc=qc, pauli_str=pauli_str, optimize=optimize, **kwargs
                     )
                 )
-        exp_value = sum(
+        exp_value: float = sum(
             [h_exp_vals[i] * self._H.coefs[i] for i in range(len(self._H.coefs))]
         )
         return exp_value
 
-    def circuit_1(self, mu: int, nu: int, A_mu: str, A_nu: str):
-        """Constructs the following quantum circuit (see AVQITE paper for details):
-        U^{\\dag}_{0,\nu-1} A_{\nu} U_{\\mu,\nu-1} A_{\\mu} U_{0,\\mu-1}|ref>,
-        where |ref> is the reference state.
+    def circuit_1(self, mu: int, nu: int, a_mu: str, a_nu: str) -> qtn.Circuit:
+        r"""Construct a quantum circuit.
+
+        This method creates a circuit of the form:
+        U^{\dag}_{0,\nu-1} A_{\nu} U_{\mu,\nu-1} A_{\mu} U_{0,\mu-1}|ref>
+        where:
+        - |ref> is the reference state
 
         Parameters
         ----------
         mu : int
-            Index where Pauli A_mu is placed.
+            Index for placement of the first Pauli operator A_{\mu}.
         nu : int
-            Index where Pauli A_mu is placed.
-        A_mu : str
-            Pauli string A_{\\mu}.
-        A_nu : str
-            Pauli string A_{\nu}.
+            Index for placement of the second Pauli operator A_{\nu}.
+        a_mu : str
+            Pauli string operator A_{\mu} to insert at index mu.
+        a_nu : str
+            Pauli string operator A_{\nu} to insert at index nu.
+
+        Returns
+        -------
+        qtn.Circuit
+            Quimb circuit object implementing the required unitary transformation.
+
+        Raises
+        ------
+        ValueError
+            If mu >= nu or if either index exceeds the ansatz length.
 
         """
         if mu >= nu:
@@ -771,10 +812,10 @@ class QuimbVqite:
                 "mu, nu has to be smaller than the number of operators in the ansatz"
             )
         qc = self._base_circuits[mu].copy()
-        qc.apply_gates(pauli_string_to_quimb_gates(pauli_string=A_mu), contract=False)
+        qc.apply_gates(pauli_string_to_quimb_gates(pauli_string=a_mu), contract=False)
         for i in range(mu, nu):
             qc.apply_gates(self._pauli_rot_gates_list[i], contract=False)
-        qc.apply_gates(pauli_string_to_quimb_gates(pauli_string=A_nu), contract=False)
+        qc.apply_gates(pauli_string_to_quimb_gates(pauli_string=a_nu), contract=False)
         for i in reversed(range(nu)):
             qc.apply_gates(self._pauli_rot_dag_gates_list[i], contract=False)
 
@@ -786,14 +827,30 @@ class QuimbVqite:
 
         return qc
 
-    def circuit_2(self, mu: int):
-        """Constructs the following quantum circuit (see AVQITE paper for details):
-        U_{0,\\mu-1}|ref>, where |ref> is the reference state.
+    def circuit_2(self, mu: int) -> qtn.Circuit:
+        r"""Construct a quantum circuit.
+
+        This method creates a circuit of the form:
+        U_{0,\mu-1}|ref>
+        where:
+        - |ref> is the reference state
 
         Parameters
         ----------
         mu : int
-            Index up to which Pauli rotations from the ansatz are used.
+            Index up to which Pauli rotations from the ansatz are applied.
+            The circuit will include rotations from indices 0 to mu-1.
+
+        Returns
+        -------
+        qtn.Circuit
+            Quimb circuit object implementing the required unitary transformation.
+
+        Notes
+        -----
+        This circuit is used as a building block for constructing more complex circuits
+        in the VQITE algorithm. It represents the initial portion of the full ansatz
+        up to rotation index mu.
 
         """
         qc = self._init_qc.copy()
@@ -801,43 +858,57 @@ class QuimbVqite:
             qc.apply_gates(self._pauli_rot_gates_list[i], contract=False)
         return qc
 
-    def contr1_est(self, mu: int, nu: int, backend=None, **kwargs):
-        """Calculates contraction width, cost, and value for the following tensor
-        (see AVQITE paper for details):
-        <ref|U^{\\dag}_{0,\\nu-1} A_{\nu} U_{\\mu,\\nu-1} A_{\\mu} U_{0,\\mu-1}|ref>.
-        The tensor and the contraction are obtained as the evaluation of the
-        overlap between state
-        U^{\\dag}_{0,\nu-1} A_{\\nu} U_{\\mu,\\nu-1} A_{\\mu} U_{0,\\mu-1}|ref> and
-        |ref>.
+    def contr1_est(
+        self,
+        mu: int,
+        nu: int,
+        backend: str | None = None,
+        **kwargs: str | int | float | bool,
+    ) -> tuple[float, float, complex]:
+        r"""Calculate tensor network contraction metrics for a specific overlap term.
+
+        This method computes the contraction width, cost and value for the overlap:
+        <ref|U^{\dag}_{0,\nu-1} A_{\nu} U_{\mu,\nu-1} A_{\mu} U_{0,\mu-1}|ref>
+
+        This overlap term appears in the calculation of matrix elements for the VQITE
+        algorithm. The calculation involves constructing a tensor network representing
+        the circuit and finding an optimal contraction sequence.
 
         Parameters
         ----------
         mu : int
-            Index where Pauli A_mu is placed.
-            Pauli A_mu is the mu'th Pauli in the ansatz.
+            Index \mu specifying the position of the first Pauli operator A_{\mu}.
+            Must satisfy 0 ≤ \mu < len(ansatz).
         nu : int
-            Index where Pauli A_nu is placed.
-            Pauli A_nu is the nu'th Pauli in the ansatz.
-        backend : str
-            Backend to use when performing the contractions.
-            Usually specified if GPU acceleration is needed.
-        **kwargs
-            Arguments used in Quimb methods for tensor contraction
-            evaluations, such as:
-                optimize : str
-                    Optimizer to use when looking for contraction paths.
-                simplify_sequence : str
-                    TN simplifications to use when looking for contraction paths.
-                ...
+            Index \nu specifying the position of the second Pauli operator A_{\nu}.
+            Must satisfy \mu ≤ \nu < len(ansatz).
+        backend : str, optional
+            Hardware backend for tensor contractions. Options include:
+            - "numpy" : CPU-based calculations (default)
+            - "cupy" : GPU-accelerated calculations
+        **kwargs : dict
+            Additional arguments for tensor network contraction, including:
+            - optimize : str
+                Contraction path optimizer (e.g. "greedy", "optimal")
+            - simplify_sequence : str
+                Sequence of tensor network simplifications
+            - memory_limit : int
+                Maximum intermediate tensor size in bytes
 
         Returns
         -------
-        width : float64
-            Contraction width.
-        cost : float64
-            Contraction cost.
-        contraction : complex128
-            Contraction value.
+        width : float
+            Contraction width - logarithm of maximum intermediate tensor size
+        cost : float
+            Contraction cost - logarithm of total number of operations
+        contraction : complex
+            Numerical value of the contracted tensor network
+
+        Notes
+        -----
+        The contraction value is normalized by a factor of 1/4 to match the
+        conventions used in the VQITE algorithm. For \mu = \nu, the overlap reduces
+        to identity and returns (1, 0, 1).
 
         """
         if mu > len(self._ansatz) or nu > len(self._ansatz):
@@ -847,7 +918,7 @@ class QuimbVqite:
         if mu > nu:
             raise ValueError("it is assumed here that mu<=nu")
         if mu < nu:
-            qc = self.circuit_1(mu, nu, A_mu=self._ansatz[mu], A_nu=self._ansatz[nu])
+            qc = self.circuit_1(mu, nu, a_mu=self._ansatz[mu], a_nu=self._ansatz[nu])
             reh = qc.amplitude_rehearse("0" * self._num_qubits, **kwargs)
             width, cost = reh["W"], reh["C"]
             contraction = reh["tn"].contract(
@@ -858,38 +929,51 @@ class QuimbVqite:
         contraction = np.real(contraction) / 4
         return width, cost, contraction
 
-    def contr2_est(self, mu: int, backend=None, **kwargs):
-        """Calculates contraction width, cost, and value for the following tensor
-        (see AVQITE paper for details):
-        <ref|U^{\\dag}_{0,\\mu-1} A_{\\mu} U_{0,\\mu-1}|ref>.
-        The tensor and the contraction are obtained as the evaluation of the
-        expectation value of operator A_{\\mu} (\\mu'th operator from the ansatz).
+    def contr2_est(
+        self, mu: int, backend: str | None = None, **kwargs: str | int | float | bool
+    ) -> tuple[float, float, complex]:
+        r"""Calculate tensor network contraction metrics for a specific VQITE term.
+
+        This method evaluates the tensor network corresponding to the expectation value:
+        <ref|U^{\dag}_{0,\mu-1} A_{\mu} U_{0,\mu-1}|ref>
+        where:
+        - |ref> is the reference state
+
+        This term appears in the VQITE algorithm when computing elements of the
+        M matrix and V vector used to update the variational parameters.
 
         Parameters
         ----------
         mu : int
-            Index where Pauli A_mu is placed.
-            Pauli A_mu is the mu'th Pauli in the ansatz.
-        backend : str
-            Backend to use when performing the contractions.
-            Usually specified if GPU acceleration is needed.
-        **kwargs
-            Arguments used in Quimb methods for tensor contraction
-            evaluations, such as:
-                optimize : str
-                    Optimizer to use when looking for contraction paths.
-                simplify_sequence : str
-                    TN simplifications to use when looking for contraction paths.
-                ...
+            Index of the Pauli operator A_{\\mu} from the ansatz to evaluate
+        backend : str, optional
+            Hardware backend for tensor contractions:
+            - "numpy" : CPU-based calculations (default)
+            - "cupy" : GPU-accelerated calculations
+        **kwargs : dict
+            Additional arguments for tensor network contraction:
+            optimize : str
+                Contraction path optimizer (e.g. "greedy", "optimal")
+            simplify_sequence : str
+                Sequence of tensor network simplifications (e.g. "ADCRS")
+            memory_limit : int
+                Maximum intermediate tensor size in bytes
 
         Returns
         -------
-        reh['W'] : float64
-            Contraction width.
-        reh['C'] : float64
-            Contraction cost.
-        contraction : complex128
-            Contraction value.
+        width : float
+            Logarithm of maximum intermediate tensor size during contraction
+        cost : float
+            Logarithm of total number of contraction operations
+        contraction : complex
+            Numerical value of the contracted tensor network, normalized by i/2
+            to match VQITE conventions
+
+        Notes
+        -----
+        The contraction value represents a term in the gradient used to update
+        the variational parameters in the VQITE algorithm. The i/2 normalization
+        factor ensures consistency with the theoretical derivation.
 
         """
         if mu > len(self._ansatz):
