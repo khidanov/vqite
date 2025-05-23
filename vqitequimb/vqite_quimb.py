@@ -990,91 +990,64 @@ class QuimbVqite:
 
 
 def add_pauli_rotation_gate(
-    qc: "quimb.tensor.circuit.Circuit",
+    qc: qtn.Circuit,
     pauli_string: str,
     theta: float,
     decompose_rzz: bool = True,
-):
-    """Appends a Pauli rotation gate to a Quimb Circuit.
-    Convention for Pauli string ordering is opposite to the Qiskit convention.
-    For example, in string "XYZ" Pauli "X" acts on the first qubit.
+) -> qtn.Circuit:
+    r"""Append a Pauli rotation gate to a Quimb Circuit.
+
+    The Pauli string ordering follows the opposite convention from Qiskit - in a string
+    like "XYZ", X acts on qubit 0, Y on qubit 1, and Z on qubit 2.
 
     Parameters
     ----------
-    qc : "quimb.tensor.circuit.Circuit"
-        Quimb Circuit to which the Pauli rotation gate is appended.
+    qc : quimb.tensor.circuit.Circuit
+        The quantum circuit to append the Pauli rotation gate to.
     pauli_string : str
-        Pauli string defining the rotation.
+        String of Pauli operators ('I', 'X', 'Y', 'Z') defining the rotation axis.
+        Must have same length as number of qubits in circuit.
     theta : float
-        Rotation angle.
-    decompose_rzz : bool
-        If decompose_rzz==True, all rzz gates are decompsed into cx-rz-cx.
-        Otherwise, the final circuit contains rzz gates.
+        Rotation angle in radians.
+    decompose_rzz : bool, default=True
+        If True, decomposes RZZ gates into a sequence of CNOT and RZ gates.
+        If False, keeps RZZ gates in the circuit.
 
     Returns
     -------
-    qc: Parameterized "quimb.tensor.circuit.Circuit"
+    quimb.tensor.circuit.Circuit
+        The input circuit with the Pauli rotation gate appended. The gate is
+        parameterized to allow for parameter updates.
+
+    Notes
+    -----
+    The rotation implements the unitary U = exp(-i θ P/2) where P is the tensor
+    product of Pauli operators specified by pauli_string. Single-qubit rotations
+    use native RX/RY/RZ gates, while multi-qubit rotations are decomposed into
+    a sequence of CNOT gates and single-qubit rotations.
 
     """
     if qc.N != len(pauli_string):
         raise ValueError("Circuit and Pauli string are of different size")
-    if (
-        all(
-            [
-                pauli == "I" or pauli == "X" or pauli == "Y" or pauli == "Z"
-                for pauli in pauli_string
-            ]
-        )
-        == False
-    ):
+    if not all(pauli in "IXYZ" for pauli in pauli_string):
         raise ValueError("Pauli string does not have a correct format")
 
     nontriv_pauli_list = [
         (i, pauli) for i, pauli in enumerate(pauli_string) if pauli != "I"
     ]
-    if len(nontriv_pauli_list) == 1:
-        if nontriv_pauli_list[0][1] == "X":
-            qc.apply_gate(
-                "RX",
-                theta,
-                nontriv_pauli_list[0][0],
-                parametrize=True,
-                gate_opts={"contract": False},
-            )
-        if nontriv_pauli_list[0][1] == "Y":
-            qc.apply_gate(
-                "RY",
-                theta,
-                nontriv_pauli_list[0][0],
-                parametrize=True,
-                gate_opts={"contract": False},
-            )
-        if nontriv_pauli_list[0][1] == "Z":
-            qc.apply_gate(
-                "RZ",
-                theta,
-                nontriv_pauli_list[0][0],
-                parametrize=True,
-                gate_opts={"contract": False},
-            )
-    elif (
-        len(nontriv_pauli_list) == 2
-        and nontriv_pauli_list[0][1] + nontriv_pauli_list[1][1] == "XX"
-    ):
+    if len(nontriv_pauli_list) == 1 and nontriv_pauli_list[0][1] in "XYZ":
         qc.apply_gate(
-            "RXX",
+            f"R{nontriv_pauli_list[0][1]}",
             theta,
             nontriv_pauli_list[0][0],
-            nontriv_pauli_list[1][0],
             parametrize=True,
             gate_opts={"contract": False},
         )
-    elif (
-        len(nontriv_pauli_list) == 2
-        and nontriv_pauli_list[0][1] + nontriv_pauli_list[1][1] == "YY"
-    ):
+    elif len(nontriv_pauli_list) == 2 and nontriv_pauli_list[0][1] + nontriv_pauli_list[
+        1
+    ][1] in ["XX", "YY"]:
         qc.apply_gate(
-            "RYY",
+            f"R{nontriv_pauli_list[0][1] + nontriv_pauli_list[1][1]}",
             theta,
             nontriv_pauli_list[0][0],
             nontriv_pauli_list[1][0],
@@ -1094,7 +1067,7 @@ def add_pauli_rotation_gate(
                 nontriv_pauli_list[list_ind][0],
                 nontriv_pauli_list[list_ind + 1][0],
             )
-        if decompose_rzz == True:
+        if decompose_rzz is True:
             qc.apply_gate(
                 "CX",
                 nontriv_pauli_list[len(nontriv_pauli_list) - 2][0],
@@ -1112,7 +1085,7 @@ def add_pauli_rotation_gate(
                 nontriv_pauli_list[len(nontriv_pauli_list) - 2][0],
                 nontriv_pauli_list[len(nontriv_pauli_list) - 1][0],
             )
-        if decompose_rzz == False:
+        if decompose_rzz is False:
             qc.apply_gate(
                 "RZZ",
                 theta,
