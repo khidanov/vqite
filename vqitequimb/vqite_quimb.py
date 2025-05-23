@@ -862,6 +862,7 @@ class QuimbVqite:
         self,
         mu: int,
         nu: int,
+        backend: str | None = None,
         **kwargs: str | int | float | bool,
     ) -> tuple[float, float, complex]:
         r"""Calculate tensor network contraction metrics for a specific overlap term.
@@ -921,7 +922,7 @@ class QuimbVqite:
             reh = qc.amplitude_rehearse("0" * self._num_qubits, **kwargs)
             width, cost = reh["W"], reh["C"]
             contraction = reh["tn"].contract(
-                all, optimize=reh["tree"], output_inds=(), backend=kwargs.get("backend")
+                all, optimize=reh["tree"], output_inds=(), backend=backend
             )
         if mu == nu:
             width, cost, contraction = (1, 0, 1)
@@ -929,7 +930,7 @@ class QuimbVqite:
         return width, cost, contraction
 
     def contr2_est(
-        self, mu: int, **kwargs: str | int | float | bool
+        self, mu: int, backend: str | None = None, **kwargs: str | int | float | bool
     ) -> tuple[float, float, complex]:
         r"""Calculate tensor network contraction metrics for a specific VQITE term.
 
@@ -982,7 +983,7 @@ class QuimbVqite:
         qc = self._base_circuits[mu]
         reh = p_str_exp_contr_path(qc=qc, pauli_str=self._ansatz[mu], **kwargs)
         contraction = reh["tn"].contract(
-            all, optimize=reh["tree"], output_inds=(), backend=kwargs.get("backend")
+            all, optimize=reh["tree"], output_inds=(), backend=backend
         )
         contraction = np.real(1j * contraction / 2)
         return reh["W"], reh["C"], contraction
