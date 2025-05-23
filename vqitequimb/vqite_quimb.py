@@ -660,7 +660,7 @@ class QuimbVqite:
             params_new = [p + pp * dt for p, pp in zip(self.params, dthdt)]
             self.params = params_new
             self.update_params()
-            self._e: float = self.h_exp_val(
+            self._e: complex = self.h_exp_val(
                 params=self.params, optimize=optimize_v, **kwargs
             )
             if self._rank == 0:
@@ -712,7 +712,7 @@ class QuimbVqite:
         params: list[float] | None = None,
         optimize: str | dict = "greedy",
         **kwargs: str | int | float | bool,
-    ) -> float:
+    ) -> complex:
         """Compute the expectation value of the Hamiltonian using Quimb.
 
         The expectation value is calculated by evaluating each Pauli string term in
@@ -738,7 +738,7 @@ class QuimbVqite:
 
         Returns
         -------
-        float
+        complex
             The expectation value
 
         Notes
@@ -770,7 +770,7 @@ class QuimbVqite:
                         qc=qc, pauli_str=pauli_str, optimize=optimize, **kwargs
                     )
                 )
-        exp_value: float = sum(
+        exp_value: complex = sum(
             [h_exp_vals[i] * self._H.coefs[i] for i in range(len(self._H.coefs))]
         )
         return exp_value
@@ -944,7 +944,7 @@ class QuimbVqite:
         Parameters
         ----------
         mu : int
-            Index of the Pauli operator A_{\\mu} from the ansatz to evaluate
+            Index of the Pauli operator A_{\mu} from the ansatz to evaluate
         **kwargs : dict
             Additional arguments for tensor network contraction:
             optimize : str
