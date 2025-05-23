@@ -1109,87 +1109,147 @@ def add_pauli_rotation_gate(
     return qc
 
 
-def read_adaptvqite_ansatz(filename: str):
-    """Reads the ansatz from a file resulting from adaptvqite calculation.
+def read_adaptvqite_ansatz(filename: str) -> tuple[list[str], list[float]]:
+    """Read ansatz from an adaptive calculation.
+
+    Loads the variational ansatz (sequence of Pauli strings) and corresponding
+    parameters (rotation angles) from a pickle file containing results from a
+    previous adaptive VQITE calculation.
 
     Parameters
     ----------
     filename : str
-        Name of a file containing the results of adaptvqite calculation.
-        Has to be given in .pkle format.
+        Path to the pickle file (.pkle) containing the adaptive VQITE results.
+        The file must contain a tuple of (ansatz, parameters) saved using pickle.
 
     Returns
     -------
-    ansatz_adaptvqite : List[str]
-        List of Pauli strings entering the ansatz.
-    params_adaptvqite : List[float64]
-        Parameters (angles) of the ansatz.
+    ansatz_adaptvqite : list[str]
+        List of Pauli strings defining the variational ansatz. Each string
+        represents a tensor product of Pauli operators (e.g. "IXYZ").
+    params_adaptvqite : list[np.float64]
+        List of variational parameters/angles corresponding to each Pauli
+        string in the ansatz. These parameters define rotations in the
+        quantum circuit.
+
+    Raises
+    ------
+    ImportError
+        If the provided filename does not have a .pkle extension.
+
+    Notes
+    -----
+    The pickle file should contain exactly two elements:
+    1. A list of Pauli strings representing the ansatz
+    2. A list of floating point numbers for the parameters
+
+    The ansatz and parameters can be used to reconstruct the optimized
+    quantum circuit from the adaptive VQITE calculation.
 
     """
-    if filename[-5:] != ".pkle":
+    if not filename.endswith(".pkle"):
         raise ImportError("Ansatz file should be given in .pkle format")
 
     with open(filename, "rb") as inp:
-        data_inp = pickle.load(inp)
+        data_inp = pickle.load(inp)  # consider safer formats, such as JSON.
         ansatz_adaptvqite = data_inp[0]
         params_adaptvqite = data_inp[1]
 
     return ansatz_adaptvqite, params_adaptvqite
 
 
-def pauli_string_to_quimb_gates(pauli_string):
-    """Converts a Pauli string into a Quimb gate."""
-    gates = ()
-    for i, el in enumerate(pauli_string):
-        if el == "X":
-            gates = gates + (qtn.circuit.Gate(label="X", params=[], qubits=(i,)),)
-        if el == "Y":
-            gates = gates + (qtn.circuit.Gate(label="Y", params=[], qubits=(i,)),)
-        if el == "Z":
-            gates = gates + (qtn.circuit.Gate(label="Z", params=[], qubits=(i,)),)
-    return gates
+def pauli_string_to_quimb_gates(pauli_string: str) -> tuple[qtn.circuit.Gate, ...]:
+    """Convert a Pauli string into a sequence of Quimb gates.
+
+    Takes a string of Pauli operators ('X', 'Y', 'Z') and converts it into
+    a tuple of corresponding Quimb gate objects that can be applied to a circuit.
+
+    Parameters
+    ----------
+    pauli_string : str
+        String of Pauli operators ('X', 'Y', 'Z') defining the gates.
+
+    Returns
+    -------
+    tuple[qtn.circuit.Gate, ...]
+        Tuple of Quimb gate objects corresponding to the non-identity Pauli
+        operators in the input string.
+
+    Notes
+    -----
+    The Pauli string ordering follows the opposite convention from Qiskit - in a string
+    like "XYZ", X acts on qubit 0, Y on qubit 1, and Z on qubit 2.
+
+    """
+    return tuple(
+        qtn.circuit.Gate(label=el, params=[], qubits=(i,))
+        for i, el in enumerate(pauli_string)
+        if el in "XYZ"
+    )
 
 
-def p_str_exp_contr_path(qc, pauli_str: str, **kwargs):
-    """Constucts a contraction path for a TN evaluating the expectation value of a
-    Pauli string.
+def p_str_exp_contr_path(
+    qc: qtn.circuit.Circuit, pauli_str: str, **kwargs: str | int | float | bool
+) -> dict[str, list | float]:
+    """Constuct a contraction path for a TN evaluating the expectation value.
+
+    This function takes a quantum circuit and a Pauli string operator, and returns the
+    optimal contraction path and tensor network.
 
     Parameters
     ----------
     qc : quimb.tensor.circuit.Circuit
-        Quantum circuit representing a state for which the expectation value
-        is computed.
-    **kwargs
-        Arguments used in Quimb methods for tensor contraction
-        evaluations, such as:
-            optimize : str
-                Optimizer to use when looking for contraction paths.
-            simplify_sequence : str
-                TN simplifications to use when looking for contraction paths.
-            backend : str
-                Backend to use when performing the contractions.
-                Usually specified if GPU acceleration is needed.
-            ...
+        Quantum circuit representing the state |ψ> for which to compute
+        the Pauli string expectation value.
+    pauli_str : str
+        String of Pauli operators ('I', 'X', 'Y', 'Z') defining the observable P.
+        Must have same length as number of qubits in circuit.
+    **kwargs : dict
+        Arguments for Quimb tensor network contraction:
+        optimize : str
+            Contraction path optimizer (e.g. "greedy", "optimal")
+        simplify_sequence : str
+            Sequence of tensor network simplifications (e.g. "ADCRS")
+        memory_limit : int
+            Maximum intermediate tensor size in bytes
+        backend : str
+            Hardware backend for contractions (e.g. "numpy", "cupy")
 
     Returns
     -------
-    reh : dict
-        Dictionary representing the cotraction path and the TN to be contracted:
-        reh['tree'] -- contraction path
-        reh['tn'] -- TN
+    dict
+        Dictionary containing:
+        'tree' : list
+            Optimal contraction path sequence
+        'tn' : TensorNetwork
+            Tensor network
+        'W' : float
+            Contraction width (log of largest intermediate)
+        'C' : float
+            Contraction cost (log of total operations)
+
+    Notes
+    -----
+    The contraction path is optimized to minimize both the maximum intermediate tensor
+    size (width) and total number of operations (cost). The returned tensor network
+    can be contracted using the optimal path to obtain the expectation value.
 
     """
     where = [i for i, p in enumerate(pauli_str) if p != "I"]
-    paulis = [p for i, p in enumerate(pauli_str) if p != "I"]
+    paulis = [p for p in pauli_str if p != "I"]
     operator = qu.pauli(paulis[0])
     for i in range(1, len(where)):
         operator = operator & qu.pauli(paulis[i])
-    reh = qc.local_expectation_rehearse(operator, where, **kwargs)
+    reh: dict[str, list | float] = qc.local_expectation_rehearse(
+        operator, where, **kwargs
+    )
     return reh
 
 
-def p_str_exp_eval(qc, pauli_str: str, **kwargs):
-    """Evaluates the expectation value of a Pauli string using TN contraction.
+def p_str_exp_eval(
+    qc: qtn.circuit.Circuit, pauli_str: str, **kwargs: str | int | float | bool
+) -> complex:
+    """Evaluate the expectation value of a Pauli string using TN contraction.
 
     Parameters
     ----------
@@ -1198,28 +1258,27 @@ def p_str_exp_eval(qc, pauli_str: str, **kwargs):
         is computed.
     pauli_str : str
         Pauli string representing an observable.
-    **kwargs
-        Arguments used in Quimb methods for tensor contraction
-        evaluations, such as:
-            optimize : str
-                Optimizer to use when looking for contraction paths.
-            simplify_sequence : str
-                TN simplifications to use when looking for contraction paths.
-            backend : str
-                Backend to use when performing the contractions.
-                Usually specified if GPU acceleration is needed.
-            ...
+    **kwargs : dict
+        Arguments for Quimb tensor network contraction:
+        optimize : str
+            Optimizer to use when looking for contraction paths.
+        simplify_sequence : str
+            TN simplifications to use when looking for contraction paths.
+        backend : str
+            Backend to use when performing the contractions.
+            Usually specified if GPU acceleration is needed.
+        ...
 
     Returns
     -------
-    exp_val : complex128
+    exp_val : complex
         Expectation value of the Pauli string.
 
     """
     where = [i for i, p in enumerate(pauli_str) if p != "I"]
-    paulis = [p for i, p in enumerate(pauli_str) if p != "I"]
+    paulis = [p for p in pauli_str if p != "I"]
     operator = qu.pauli(paulis[0])
     for i in range(1, len(where)):
         operator = operator & qu.pauli(paulis[i])
-    exp_val = qc.local_expectation(operator, where, **kwargs)
+    exp_val: complex = qc.local_expectation(operator, where, **kwargs)
     return exp_val
