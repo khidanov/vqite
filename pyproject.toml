@@ -1,3 +1,40 @@
+[project]
+name = "vqite-quimb"
+description = "Variational Quantum Imaginary Time Evolution using Quimb."
+readme = { file = "README.md", content-type = "text/markdown" }
+# dynamic = ["version"]
+authors = [{ name = "Alekei Khindanov", email = "khindalex@gmail.com" }, { name = "Aleksandr Khindanov", email = "khindanov98@gmail.com" }]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = [
+    "quantum",
+    "physics",
+    "variational",
+    "vqite",
+    "quimb",
+    "tensor",
+    "networks",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "autoray>=0.6.12",
+    "cotengra>=0.7.1",
+    "cytoolz>=0.8.0",
+    "numba>=0.39",
+    "numpy>=1.17",
+    "psutil>=4.3.1",
+    "scipy>=1.0.0",
+    "tqdm>=4",
+]
+
 [tool.ruff]
 # General settings for Ruff
 line-length = 88
