@@ -55,6 +55,8 @@ cotengra_advanced = [
     "networkx",
     "opt_einsum",
     "optuna",
+]
+kahypar = [
     "kahypar",
 ]
 
