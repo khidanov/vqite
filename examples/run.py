@@ -30,7 +30,7 @@ import argparse
 import os
 import time
 
-import vqite_quimb
+from vqite import vqite_quimb
 
 try:
     from mpi4py import MPI
