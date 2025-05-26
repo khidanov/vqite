@@ -1,13 +1,8 @@
 quimb==1.8.4
 
 
-
-
-
-
 # cmaes
 # cotengrust
-# cytoolz
 # loky
 # networkx
 # opt_einsum

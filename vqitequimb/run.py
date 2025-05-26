@@ -28,9 +28,23 @@ Output:
 
 import argparse
 import os
+import time
 
 import vqite_quimb
-from mpi4py import MPI
+
+try:
+    from mpi4py import MPI
+
+    mpi_available = True
+    # Initialize MPI communication
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+except ImportError:
+    # Fallback: Serial mode
+    mpi_available = False
+    rank = 0
+    size = 1
 
 # Set up command-line argument parser
 parser = argparse.ArgumentParser(
@@ -78,11 +92,6 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-# Initialize MPI communication
-comm = MPI.COMM_WORLD
-size = comm.Get_size()
-rank = comm.Get_rank()
-
 # Extract command line arguments
 filename = args.filename
 init_params = args.init_params
@@ -99,15 +108,33 @@ outputs_dir = os.path.join(script_dir, "outputs")
 os.makedirs(outputs_dir, exist_ok=True)
 output_file = os.path.join(
     outputs_dir,
-    f"output{filename}n{size!s}_{init_params}_om{optimize_m}_ov{optimize_v}_"
+    f"output{filename}n{size}_{init_params}_om{optimize_m}_ov{optimize_v}_"
     f"s{simplify_sequence}.txt",
 )
+
+if mpi_available:
+    with open(output_file, "w") as f:
+        print(f"Running in parallel mode with {size} processes", file=f)
+else:
+    with open(output_file, "w") as f:
+        print("MPI not available, running in serial mode", file=f)
+
+
+def log(message: str) -> None:
+    """Log a message to the output file."""
+    global output_file
+    with open(output_file, "a") as f:
+        print(message, file=f)
+
 
 # Initialize VQITE on rank 0 and broadcast parameters to other ranks
 # (this is for the case of random initial parameters such that they are the same on all
 # ranks)
 if rank == 0:
-    start_time = MPI.Wtime()
+    if mpi_available:
+        start_time = MPI.Wtime()
+    else:
+        start_time = time.time()
     vqite_quimb_obj = vqite_quimb.QuimbVqite(
         incar_file=incar_file,
         ansatz_file=ansatz_file,
@@ -115,15 +142,17 @@ if rank == 0:
         init_params=init_params,
     )
     init_params = vqite_quimb_obj.params
-    end_time = MPI.Wtime()
-    with open(output_file, "w") as f:
-        print("rank=", rank, " initialization time: ", end_time - start_time, file=f)
-
+    if mpi_available:
+        end_time = MPI.Wtime()
+    else:
+        end_time = time.time()
+    log(f"rank={rank}, initialization time: {end_time - start_time}")
 else:
     init_params = None
 
 # Broadcast initial parameters from rank 0 to all other ranks
-init_params = comm.bcast(init_params, root=0)
+if mpi_available:
+    init_params = comm.bcast(init_params, root=0)
 
 # Initialize VQITE on other ranks with broadcasted parameters
 if rank != 0:
@@ -158,8 +187,7 @@ if rank != 0:
 
 # Record initial parameters
 if rank == 0:
-    with open(output_file, "a") as f:
-        print(vqite_quimb_obj.params, file=f)
+    log(f"{vqite_quimb_obj.params}")
 
 # Run VQITE
 vqite_quimb_obj.vqite(
@@ -170,6 +198,4 @@ vqite_quimb_obj.vqite(
 )
 
 # Record final results
-if rank == 0:
-    with open(output_file, "a") as f:
-        print("Final energy:", vqite_quimb_obj._e, vqite_quimb_obj.params, file=f)
+log(f"Final energy: {vqite_quimb_obj._e}, {vqite_quimb_obj.params}")

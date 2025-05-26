@@ -21,11 +21,20 @@ Notes:
 """
 
 import pickle
+import time
 
 import numpy as np
 import quimb as qu
 import quimb.tensor as qtn
-from mpi4py import MPI
+
+try:
+    from mpi4py import MPI
+
+    mpi_available = True
+
+except ImportError:
+    # Fallback: Serial mode
+    mpi_available = False
 
 
 class ModelH:
@@ -204,9 +213,13 @@ class QuimbVqite:
         self._output_file = output_file
         self._init_params = init_params
 
-        self._comm = MPI.COMM_WORLD
-        self._size = self._comm.Get_size()
-        self._rank = self._comm.Get_rank()
+        if mpi_available:
+            self._comm = MPI.COMM_WORLD
+            self._size = self._comm.Get_size()
+            self._rank = self._comm.Get_rank()
+        else:
+            self._rank = 0
+            self._size = 1
 
         # Reads out the Hamiltonian from the incar file.
         self._H = ModelH(self._incar_file)
@@ -306,6 +319,11 @@ class QuimbVqite:
         self._base_circuits = [
             self.circuit_2(mu) for mu in range(len(self._ansatz) + 1)
         ]
+
+    def log(self, message: str) -> None:
+        """Log a message to the output file."""
+        with open(self._output_file, "a") as f:
+            print(message, file=f)
 
     def update_params(self) -> None:
         """Update the circuit parameters to match the current values in self.params.
@@ -424,18 +442,23 @@ class QuimbVqite:
 
         sendcountes = tuple(bins_sizes)
         displacements = tuple([sum(bins_sizes[:i]) for i in range(self._size)])
-
-        self._comm.Allgatherv(
-            [m_interm, MPI.DOUBLE], [m_nonzero, sendcountes, displacements, MPI.DOUBLE]
-        )
-        self._comm.Allgatherv(
-            [m_interm_cost, MPI.DOUBLE],
-            [m_nonzero_cost, sendcountes, displacements, MPI.DOUBLE],
-        )
-        self._comm.Allgatherv(
-            [m_interm_width, MPI.DOUBLE],
-            [m_nonzero_width, sendcountes, displacements, MPI.DOUBLE],
-        )
+        if mpi_available:
+            self._comm.Allgatherv(
+                [m_interm, MPI.DOUBLE],
+                [m_nonzero, sendcountes, displacements, MPI.DOUBLE],
+            )
+            self._comm.Allgatherv(
+                [m_interm_cost, MPI.DOUBLE],
+                [m_nonzero_cost, sendcountes, displacements, MPI.DOUBLE],
+            )
+            self._comm.Allgatherv(
+                [m_interm_width, MPI.DOUBLE],
+                [m_nonzero_width, sendcountes, displacements, MPI.DOUBLE],
+            )
+        else:
+            m_nonzero = m_interm
+            m_nonzero_cost = m_interm_cost
+            m_nonzero_width = m_interm_width
         self._m = np.zeros((len(self._ansatz), len(self._ansatz)))
         for i in range(len(ind_list)):
             self._m[ind_list[i]] = m_nonzero[i]
@@ -538,10 +561,13 @@ class QuimbVqite:
         sendcountes = tuple(bins_sizes)
         displacements = tuple([sum(bins_sizes[:i]) for i in range(self._size)])
         # collecting an array of the expectation values for all Pauli strings
-        self._comm.Allgatherv(
-            [exp_vals_iterm, MPI.DOUBLE],
-            [self._exp_vals, sendcountes, displacements, MPI.DOUBLE],
-        )
+        if mpi_available:
+            self._comm.Allgatherv(
+                [exp_vals_iterm, MPI.DOUBLE],
+                [self._exp_vals, sendcountes, displacements, MPI.DOUBLE],
+            )
+        else:
+            self._exp_vals = exp_vals_iterm
         # computing Hamiltonian expectation values for different parameters
         h_exp_vals = [
             sum(
@@ -625,10 +651,12 @@ class QuimbVqite:
         """
         _iter: int = 0
         if self._rank == 0:
-            with open(self._output_file, "a") as f:
-                print("Starting VQITE calculation...", file=f)
+            self.log("Starting VQITE calculation...")
         while True:
-            t1: float = MPI.Wtime()
+            if mpi_available:
+                t1: float = MPI.Wtime()
+            else:
+                t1: float = time.time()
             if _iter == 0:
                 # For the first iteration, need to compute the entire matrix
                 # since it is not known a priori which elements are zero.
@@ -641,41 +669,42 @@ class QuimbVqite:
                     if non_zero_els[0][i] <= non_zero_els[1][i]
                 ]
                 if self._rank == 0:
-                    with open(self._output_file, "a") as f:
-                        print(
-                            "# of nonzero elements of M: ",
-                            len(self.which_nonzero),
-                            file=f,
-                        )
+                    self.log(f"# of nonzero elements of M: {len(self.which_nonzero)}")
             else:
                 # For iterations after the first one, need to compute only
                 # nonzero elements
                 self.compute_m(
                     optimize=optimize_m, which_nonzero=self.which_nonzero, **kwargs
                 )
-            t2: float = MPI.Wtime()
+            if mpi_available:
+                t2: float = MPI.Wtime()
+            else:
+                t2: float = time.time()
             self.compute_v(optimize=optimize_v, **kwargs)
-            t3: float = MPI.Wtime()
+            if mpi_available:
+                t3: float = MPI.Wtime()
+            else:
+                t3: float = time.time()
             dthdt: np.ndarray = self.get_dthdt(delta=delta, m=self._m, v=self._v)
-            params_new = [p + pp * dt for p, pp in zip(self.params, dthdt)]
+            params_new = [
+                p + pp * dt for p, pp in zip(self.params, dthdt, strict=False)
+            ]
             self.params = params_new
             self.update_params()
             self._e: complex = self.h_exp_val(
                 params=self.params, optimize=optimize_v, **kwargs
             )
             if self._rank == 0:
-                with open(self._output_file, "a") as f:
-                    print(
-                        "iter: ",
-                        _iter,
-                        ", M matrix time: ",
-                        t2 - t1,
-                        ", V vector time: ",
-                        t3 - t2,
-                        ", Energy: ",
-                        self._e,
-                        file=f,
-                    )
+                self.log(
+                    f"iter: "
+                    f"{_iter}"
+                    f", M matrix time: "
+                    f"{t2 - t1}"
+                    f", V vector time: "
+                    f"{t3 - t2}"
+                    f", Energy: "
+                    f"{self._e}"
+                )
             self._vmax: float = np.max(np.abs(self._v))
             # Convergence condition.
             if self._vmax < 1e-4:
