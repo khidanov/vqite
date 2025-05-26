@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vqite-quimb"
+name = "vqite"
 version = "0.1.0"
 description = "Variational Quantum Imaginary Time Evolution using Quimb."
 readme = { file = "README.md", content-type = "text/markdown" }
