@@ -41,8 +41,8 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/khidanov/vqite-quimb"
-Documentation = "https://github.com/khidanov/vqite-quimb#readme"
+Repository = "https://github.com/khindanov/vqite"
+Documentation = "https://github.com/khindanov/vqite#readme"
 
 [project.optional-dependencies]
 mpi = [
