@@ -54,7 +54,7 @@ This package can optionally use **MPI (mpi4py)** for parallel execution. See off
 
 3. Install **project dependencies** (required):
    ```bash
-   pip install .
+   pip install -e .
    ```
 
 4. Install **optional dependecies**:
