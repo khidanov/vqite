@@ -17,12 +17,12 @@ It's recommended to use a **virtual environment**:
    ```
 2. Using **conda**
 
-   - Install Anaconda or Miniconda from the [official website](https://docs.conda.io/en/latest/miniconda.html)
-
-   ```bash
-   conda create -n myenv python=3.10
-   conda activate myenv
-   ```
+   - Install Miniconda from the [official website](https://docs.conda.io/en/latest/miniconda.html)
+   - Then
+      ```bash
+      conda create -n myenv python=3.10
+      conda activate myenv
+      ```
 
 ### MPI (mpi4py) Installation
 
