@@ -84,9 +84,9 @@ This package can optionally use **MPI (mpi4py)** for parallel execution. See off
 2. Execution:
    - For execution **with MPI** (single-node):
       ```bash
-      mpiexec -n <number_of_processes> python run.py
+      mpiexec -n <number_of_processes> python examples/run.py
       ```
    - For execution **without MPI**:
       ``` bash
-      python run.py
+      python examples/run.py
       ```
