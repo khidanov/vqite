@@ -6,7 +6,7 @@ Tensor-network implementation of the Variational Quantum Imaginary-Time Evolutio
 
 Before installing Python packages, ensure you have the following prerequisites:
 
-It's recommended to use a **virtual environment**:
+It is recommended to use a **virtual environment**:
 
 1. Using **venv** (built-in):
    ```bash
