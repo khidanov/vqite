@@ -47,7 +47,7 @@ This package can optionally use **MPI (mpi4py)** for parallel execution. See off
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/khidanov/vqite.git
+   git clone https://github.com/khindanov/vqite.git
    ```
 
 2. Create and activate a new environment (optional)
