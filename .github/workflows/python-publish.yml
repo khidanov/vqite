@@ -33,6 +33,12 @@ jobs:
 
       - name: Build release distributions with Hatch
         run: hatch build
+        
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
 
   pypi-publish:
     runs-on: ubuntu-latest
